@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "398240843300",
+    "project_id": "listriq",
+    "storage_bucket": "listriq.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:398240843300:android:deaa5c45e0d47e78b07ab1",
+        "android_client_info": {
+          "package_name": "com.listriq.listriq_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLjpFtiTeg8EuP5_TfcD9k7ucyyGKQrhc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
