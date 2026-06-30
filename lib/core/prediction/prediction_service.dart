@@ -61,9 +61,11 @@ class PredictionService {
     for (int i = 0; i < sorted.length - 1; i++) {
       final prev = sorted[i];
       final next = sorted[i + 1];
-      final dayDiff = next.date.difference(prev.date).inDays;
+      // Pakai fractional days — biar check-in beda jam di hari sama tetap valid.
+      final dayDiff =
+          next.date.difference(prev.date).inMinutes / (24 * 60);
 
-      if (dayDiff <= 0) continue;
+      if (dayDiff <= 0.001) continue; // < 1 menit → anggap sama
 
       final deltaKWh = prev.remainingKWh - next.remainingKWh;
 
@@ -193,7 +195,7 @@ class PredictionService {
 class _DailyRate {
   final DateTime date;
   final double dailyKWh;
-  final int daysBetween;
+  final double daysBetween; // fractional (pakai inMinutes/1440)
 
   const _DailyRate({
     required this.date,
