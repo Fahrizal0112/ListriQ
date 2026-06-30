@@ -47,8 +47,12 @@ class _CheckInPageState extends ConsumerState<CheckInPage> {
         await onboarding.incrementCheckIn();
       }
 
-      // Refresh prediction provider.
-      ref.invalidate(databaseProvider);
+      // Invalidate SEMUA provider biar UI refresh.
+      ref.invalidate(sharedPreferencesProvider);
+      ref.invalidate(onboardingServiceProvider);
+      ref.invalidate(latestCheckInProvider);
+      ref.invalidate(allCheckInsProvider);
+      ref.invalidate(allPurchasesProvider);
 
       // Update home screen widget.
       await HomeWidgetService.updateWidget(db);

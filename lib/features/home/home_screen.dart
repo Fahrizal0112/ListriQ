@@ -8,110 +8,116 @@ import 'package:listriq_app/core/storage/storage_provider.dart';
 
 import 'widgets/progress_circle.dart';
 
-/// Dashboard utama setelah onboarding/kalibrasi.
+/// Dashboard utama.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dbAsync = ref.watch(databaseProvider);
-    final lastCheckInAsync = dbAsync.when(
-      data: (db) => ref.watch(_latestCheckInProvider(db)),
-      loading: () => const AsyncValue.loading(),
-      error: (e, _) => AsyncValue.error(e, StackTrace.empty),
-    );
     final calibrationAsync = ref.watch(onboardingServiceProvider);
+    final lastCheckInAsync = ref.watch(latestCheckInProvider);
+    final checkInsAsync = ref.watch(allCheckInsProvider);
+    final purchasesAsync = ref.watch(allPurchasesProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('⚡ ListriQ'),
         centerTitle: true,
       ),
-      body: Center(
-        child: dbAsync.when(
-          loading: () => const CircularProgressIndicator(),
-          error: (e, _) => Text('Error: $e'),
-          data: (db) => lastCheckInAsync.when(
-            loading: () => const CircularProgressIndicator(),
-            error: (e, _) => _buildNoData(context, ref, calibrationAsync),
-            data: (lastCheckIn) => lastCheckIn != null
-                ? _buildDashboard(
-                    context, ref, db, lastCheckIn, calibrationAsync)
-                : _buildNoData(context, ref, calibrationAsync),
-          ),
-        ),
+      body: lastCheckInAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => _buildNoData(context, calibrationAsync),
+        data: (lastCheckIn) => lastCheckIn == null
+            ? _buildNoData(context, calibrationAsync)
+            : _buildDashboard(
+                context, calibrationAsync, lastCheckIn,
+                checkInsAsync, purchasesAsync,
+              ),
       ),
     );
   }
 
   Widget _buildNoData(
     BuildContext context,
-    WidgetRef ref,
     AsyncValue<OnboardingService> calibrationAsync,
   ) {
-    return calibrationAsync.when(
-      loading: () => const CircularProgressIndicator(),
-      error: (e, _) => const Text('Error loading status'),
-      data: (onboarding) {
-        final isCalibrated = onboarding.isCalibrated;
-        final count = onboarding.checkInCount;
-        final theme = Theme.of(context);
+    final theme = Theme.of(context);
 
-        return Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_chart,
-                  size: 64, color: theme.colorScheme.primary),
-              const SizedBox(height: 16),
-              Text(
-                'Belum ada data meteran',
-                style: theme.textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isCalibrated
-                    ? 'Lakukan check-in pertama kamu!'
-                    : 'Hari $count dari 7 — tetap semangat! 🔥',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              if (!isCalibrated) ...[
+    return Center(
+      child: calibrationAsync.when(
+        loading: () => const CircularProgressIndicator(),
+        error: (e, _) {
+          return Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_chart,
+                    size: 64, color: theme.colorScheme.primary),
                 const SizedBox(height: 16),
-                LinearProgressIndicator(
-                  value: count / 7,
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Progress Kalibrasi',
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text('Belum ada data meteran',
+                    style: theme.textTheme.titleLarge,
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                _buildActionButtons(context),
               ],
-              const SizedBox(height: 24),
-              _buildActionButtons(context, ref),
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+        data: (onboarding) {
+          final isCalibrated = onboarding.isCalibrated;
+          final count = onboarding.checkInCount;
+
+          return Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_chart,
+                    size: 64, color: theme.colorScheme.primary),
+                const SizedBox(height: 16),
+                Text('Belum ada data meteran',
+                    style: theme.textTheme.titleLarge,
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 8),
+                Text(
+                  isCalibrated
+                      ? 'Lakukan check-in pertama kamu!'
+                      : 'Hari $count dari 7 — tetap semangat! 🔥',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (!isCalibrated) ...[
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    value: count / 7,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Progress Kalibrasi', style: theme.textTheme.bodySmall),
+                ],
+                const SizedBox(height: 24),
+                _buildActionButtons(context),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildDashboard(
     BuildContext context,
-    WidgetRef ref,
-    AppDatabase db,
-    MeterCheckIn lastCheckIn,
     AsyncValue<OnboardingService> calibrationAsync,
+    MeterCheckIn lastCheckIn,
+    AsyncValue<List<MeterCheckIn>> checkInsAsync,
+    AsyncValue<List<TokenPurchase>> purchasesAsync,
   ) {
-    // Hitung prediksi real-time (dengan data pembelian token).
-    final checkIns = ref.watch(_allCheckInsProvider(db)).value ?? [];
-    final purchases = ref.watch(_allPurchasesProvider(db)).value ?? [];
+    final checkIns = checkInsAsync.value ?? [];
+    final purchases = purchasesAsync.value ?? [];
     final dailyUsage =
         PredictionService.calculateDailyUsage(checkIns, purchases: purchases);
     final prediction = dailyUsage != null
@@ -121,24 +127,59 @@ class HomeScreen extends ConsumerWidget {
           )
         : null;
 
+    // ── Kalibrasi selesai check ──────────────────────────────
+    final calibrationData = calibrationAsync.value;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          const SizedBox(height: 12),
+          // 🎉 Kalibrasi selesai banner
+          if (calibrationData != null && calibrationData.isCalibrated) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 28),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '🎉 Kalibrasi selesai! Prediksi sudah akurat. '
+                      'Sekarang cukup check-in 1x seminggu.',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // Lingkaran progres
+          const SizedBox(height: 8),
           if (prediction != null)
             ProgressCircle(
               remainingKWh: lastCheckIn.remainingKWh,
               remainingDays: prediction.remainingDays,
               urgency: prediction.urgency,
             )
-          else
-            ProgressCircle(
-              remainingKWh: lastCheckIn.remainingKWh,
-              remainingDays: 0,
-              urgency: UrgencyLevel.green,
+          else ...[
+            Icon(Icons.electric_bolt, size: 80,
+                color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(
+              '${lastCheckIn.remainingKWh.toStringAsFixed(1)} kWh',
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
             ),
+            const Text('Butuh minimal 2 check-in untuk prediksi'),
+          ],
           const SizedBox(height: 8),
           Text(
             'Data terakhir: ${_formatDate(lastCheckIn.date)}',
@@ -147,16 +188,14 @@ class HomeScreen extends ConsumerWidget {
                 ),
           ),
           const SizedBox(height: 24),
-          // Status kalibrasi (jika masih dalam masa)
-          calibrationAsync.when(
-            data: (onboarding) {
-              if (!onboarding.isCalibrated) {
-                return Padding(
+          // Status kalibrasi (kalau belum selesai)
+          calibrationData != null && !calibrationData.isCalibrated
+              ? Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Column(
                     children: [
                       Text(
-                        'Kalibrasi: Hari ${onboarding.checkInCount} dari 7',
+                        'Kalibrasi: Hari ${calibrationData.checkInCount} dari 7',
                         style:
                             Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
@@ -164,27 +203,22 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       LinearProgressIndicator(
-                        value: onboarding.checkInCount / 7,
+                        value: calibrationData.checkInCount / 7,
                         minHeight: 6,
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ],
                   ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-            error: (_, __) => const SizedBox.shrink(),
-            loading: () => const SizedBox.shrink(),
-          ),
+                )
+              : const SizedBox.shrink(),
           // Tombol aksi
-          _buildActionButtons(context, ref),
+          _buildActionButtons(context),
         ],
       ),
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
+  Widget _buildActionButtons(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -232,20 +266,3 @@ class HomeScreen extends ConsumerWidget {
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.year}';
 }
-
-/// Provider untuk check-in terbaru.
-final _latestCheckInProvider = FutureProvider.family<MeterCheckIn?, AppDatabase>(
-  (ref, db) => db.getLatestCheckIn(),
-);
-
-/// Provider untuk semua check-in.
-final _allCheckInsProvider =
-    FutureProvider.family<List<MeterCheckIn>, AppDatabase>(
-  (ref, db) => db.getAllCheckIns(),
-);
-
-/// Provider untuk semua pembelian token.
-final _allPurchasesProvider =
-    FutureProvider.family<List<TokenPurchase>, AppDatabase>(
-  (ref, db) => db.getAllPurchases(),
-);

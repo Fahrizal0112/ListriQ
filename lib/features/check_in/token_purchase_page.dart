@@ -37,7 +37,10 @@ class _TokenPurchasePageState extends ConsumerState<TokenPurchasePage> {
         kWhAmount: Value(kwh),
       ));
 
-      ref.invalidate(databaseProvider);
+      // Invalidate semua provider biar UI refresh.
+      ref.invalidate(allPurchasesProvider);
+      ref.invalidate(allCheckInsProvider);
+      ref.invalidate(latestCheckInProvider);
 
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
