@@ -120,9 +120,11 @@ class HomeScreen extends ConsumerWidget {
     final purchases = purchasesAsync.value ?? [];
     final dailyUsage =
         PredictionService.calculateDailyUsage(checkIns, purchases: purchases);
+    final effectiveKWh =
+        PredictionService.getEffectiveKWh(checkIns, purchases);
     final prediction = dailyUsage != null
         ? PredictionService.predictExhaustionDate(
-            currentKWh: lastCheckIn.remainingKWh,
+            currentKWh: effectiveKWh,
             dailyUsage: dailyUsage,
           )
         : null;
@@ -163,7 +165,7 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           if (prediction != null)
             ProgressCircle(
-              remainingKWh: lastCheckIn.remainingKWh,
+              remainingKWh: effectiveKWh,
               remainingDays: prediction.remainingDays,
               urgency: prediction.urgency,
             )
@@ -172,7 +174,7 @@ class HomeScreen extends ConsumerWidget {
                 color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 12),
             Text(
-              '${lastCheckIn.remainingKWh.toStringAsFixed(1)} kWh',
+              '${effectiveKWh.toStringAsFixed(1)} kWh',
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,

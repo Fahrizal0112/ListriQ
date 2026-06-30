@@ -97,9 +97,10 @@ Future<void> _checkAndNotify() async {
       purchases: purchases);
   if (dailyUsage == null) return;
 
+  final effectiveKWh = PredictionService.getEffectiveKWh(checkIns, purchases);
   final latest = checkIns.reduce((a, b) => a.date.isAfter(b.date) ? a : b);
   final prediction = PredictionService.predictExhaustionDate(
-    currentKWh: latest.remainingKWh,
+    currentKWh: effectiveKWh,
     dailyUsage: dailyUsage,
   );
 
