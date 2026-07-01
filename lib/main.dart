@@ -8,6 +8,7 @@ import 'core/services/background_task_service.dart';
 import 'core/services/firebase_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/storage/storage_provider.dart';
+import 'features/check_in/check_in_list_page.dart';
 import 'features/check_in/check_in_page.dart';
 import 'features/check_in/token_purchase_page.dart';
 import 'features/home/home_screen.dart';
@@ -75,6 +76,7 @@ class ListriQApp extends ConsumerWidget {
         '/onboarding': (context) => const OnboardingPage(),
         '/home': (context) => const HomeScreen(),
         '/check-in': (context) => const CheckInPage(),
+        '/check-in-list': (context) => const CheckInListPage(),
         '/token-purchase': (context) => const TokenPurchasePage(),
         '/room': (context) => const RoomManagementPage(),
       },

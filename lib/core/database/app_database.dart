@@ -92,6 +92,10 @@ class AppDatabase extends _$AppDatabase {
             ..orderBy([(t) => OrderingTerm.asc(t.date)]))
           .get();
 
+  /// Update check-in berdasarkan ID.
+  Future<bool> updateCheckIn(MeterCheckIn entry) =>
+      update(meterCheckIns).replace(entry);
+
   /// Hapus check-in berdasarkan ID.
   Future<int> deleteCheckIn(int id) =>
       (delete(meterCheckIns)..where((t) => t.id.equals(id))).go();

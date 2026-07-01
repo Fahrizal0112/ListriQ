@@ -269,6 +269,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         SizedBox(
           width: double.infinity,
           height: 48,
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).pushNamed('/check-in-list'),
+            icon: const Icon(Icons.history),
+            label: const Text('Riwayat Check-In'),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
           child: TextButton.icon(
             onPressed: () => Navigator.of(context).pushNamed('/room'),
             icon: const Icon(Icons.people),
