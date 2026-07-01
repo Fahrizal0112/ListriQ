@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:listriq_app/core/database/app_database.dart';
@@ -8,12 +10,34 @@ import 'package:listriq_app/core/storage/storage_provider.dart';
 
 import 'widgets/progress_circle.dart';
 
-/// Dashboard utama.
-class HomeScreen extends ConsumerWidget {
+/// Dashboard utama — auto-refresh tiap 10 detik biar kWh terlihat berkurang.
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
+      // Rebuild widget tree — estimated kWh akan dihitung ulang.
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final calibrationAsync = ref.watch(onboardingServiceProvider);
     final lastCheckInAsync = ref.watch(latestCheckInProvider);
     final checkInsAsync = ref.watch(allCheckInsProvider);
@@ -52,8 +76,7 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.add_chart,
-                    size: 64, color: theme.colorScheme.primary),
+                Icon(Icons.add_chart, size: 64, color: theme.colorScheme.primary),
                 const SizedBox(height: 16),
                 Text('Belum ada data meteran',
                     style: theme.textTheme.titleLarge,
@@ -73,8 +96,7 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.add_chart,
-                    size: 64, color: theme.colorScheme.primary),
+                Icon(Icons.add_chart, size: 64, color: theme.colorScheme.primary),
                 const SizedBox(height: 16),
                 Text('Belum ada data meteran',
                     style: theme.textTheme.titleLarge,
@@ -120,23 +142,23 @@ class HomeScreen extends ConsumerWidget {
     final purchases = purchasesAsync.value ?? [];
     final dailyUsage =
         PredictionService.calculateDailyUsage(checkIns, purchases: purchases);
-    final effectiveKWh =
-        PredictionService.getEffectiveKWh(checkIns, purchases);
+    final estimatedKWh = dailyUsage != null
+        ? PredictionService.getEstimatedCurrentKWh(
+            checkIns, purchases, dailyUsage: dailyUsage)
+        : PredictionService.getEffectiveKWh(checkIns, purchases);
     final prediction = dailyUsage != null
         ? PredictionService.predictExhaustionDate(
-            currentKWh: effectiveKWh,
+            currentKWh: estimatedKWh,
             dailyUsage: dailyUsage,
           )
         : null;
 
-    // ── Kalibrasi selesai check ──────────────────────────────
     final calibrationData = calibrationAsync.value;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          // 🎉 Kalibrasi selesai banner
           if (calibrationData != null && calibrationData.isCalibrated) ...[
             Container(
               padding: const EdgeInsets.all(16),
@@ -161,11 +183,10 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ],
-          // Lingkaran progres
           const SizedBox(height: 8),
           if (prediction != null)
             ProgressCircle(
-              remainingKWh: effectiveKWh,
+              remainingKWh: estimatedKWh,
               remainingDays: prediction.remainingDays,
               urgency: prediction.urgency,
             )
@@ -174,7 +195,7 @@ class HomeScreen extends ConsumerWidget {
                 color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 12),
             Text(
-              '${effectiveKWh.toStringAsFixed(1)} kWh',
+              '${estimatedKWh.toStringAsFixed(1)} kWh',
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
@@ -184,13 +205,12 @@ class HomeScreen extends ConsumerWidget {
           ],
           const SizedBox(height: 8),
           Text(
-            'Data terakhir: ${_formatDate(lastCheckIn.date)}',
+            'Estimasi real-time (${_formatDate(DateTime.now())})',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
           const SizedBox(height: 24),
-          // Status kalibrasi (kalau belum selesai)
           calibrationData != null && !calibrationData.isCalibrated
               ? Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -198,10 +218,10 @@ class HomeScreen extends ConsumerWidget {
                     children: [
                       Text(
                         'Kalibrasi: Hari ${calibrationData.checkInCount} dari 7',
-                        style:
-                            Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 4),
                       LinearProgressIndicator(
@@ -213,7 +233,6 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 )
               : const SizedBox.shrink(),
-          // Tombol aksi
           _buildActionButtons(context),
         ],
       ),
@@ -228,8 +247,7 @@ class HomeScreen extends ConsumerWidget {
           width: double.infinity,
           height: 56,
           child: FilledButton.icon(
-            onPressed: () =>
-                Navigator.of(context).pushNamed('/check-in'),
+            onPressed: () => Navigator.of(context).pushNamed('/check-in'),
             icon: const Icon(Icons.speed),
             label: const Text(
               '+ Input Check-In Meteran',
@@ -242,8 +260,7 @@ class HomeScreen extends ConsumerWidget {
           width: double.infinity,
           height: 48,
           child: OutlinedButton.icon(
-            onPressed: () =>
-                Navigator.of(context).pushNamed('/token-purchase'),
+            onPressed: () => Navigator.of(context).pushNamed('/token-purchase'),
             icon: const Icon(Icons.shopping_cart),
             label: const Text('+ Input Pembelian Token'),
           ),
@@ -253,8 +270,7 @@ class HomeScreen extends ConsumerWidget {
           width: double.infinity,
           height: 48,
           child: TextButton.icon(
-            onPressed: () =>
-                Navigator.of(context).pushNamed('/room'),
+            onPressed: () => Navigator.of(context).pushNamed('/room'),
             icon: const Icon(Icons.people),
             label: const Text('Mode Kos / Family Sharing'),
           ),

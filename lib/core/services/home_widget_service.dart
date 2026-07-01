@@ -21,19 +21,21 @@ class HomeWidgetService {
       final purchases = await db.getAllPurchases();
       final dailyUsage = PredictionService.calculateDailyUsage(checkIns,
           purchases: purchases);
-      final effectiveKWh =
-          PredictionService.getEffectiveKWh(checkIns, purchases);
+      final estimatedKWh = dailyUsage != null
+          ? PredictionService.getEstimatedCurrentKWh(
+              checkIns, purchases, dailyUsage: dailyUsage)
+          : PredictionService.getEffectiveKWh(checkIns, purchases);
 
       final prediction = dailyUsage != null
           ? PredictionService.predictExhaustionDate(
-              currentKWh: effectiveKWh,
+              currentKWh: estimatedKWh,
               dailyUsage: dailyUsage,
             )
           : null;
 
       await HomeWidget.saveWidgetData<String>(
         'kwh',
-        '${effectiveKWh.toStringAsFixed(1)} kWh',
+        '${estimatedKWh.toStringAsFixed(1)} kWh',
       );
       await HomeWidget.saveWidgetData<String>(
         'days',

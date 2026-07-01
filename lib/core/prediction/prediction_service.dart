@@ -88,8 +88,8 @@ class PredictionService {
 
   // ── Effective kWh (check-in + pembelian setelahnya) ─────────
 
-  /// kWh efektif saat ini = kWh check-in terakhir + semua pembelian token
-  /// yang terjadi SETELAH check-in terakhir.
+  /// kWh check-in terakhir + semua pembelian token yang terjadi
+  /// SETELAH check-in terakhir.
   static double getEffectiveKWh(
     List<MeterCheckIn> checkIns,
     List<TokenPurchase> purchases,
@@ -102,6 +102,35 @@ class PredictionService {
       if (!p.date.isBefore(latest.date)) extra += p.kWhAmount;
     }
     return latest.remainingKWh + extra;
+  }
+
+  /// kWh ESTIMASI real-time = getEffectiveKWh - (dailyUsage * days since last check-in)
+  ///
+  /// Dengan ini kWh akan terus berkurang di layar utama meskipun
+  /// user tidak check-in setiap hari.
+  static double getEstimatedCurrentKWh(
+    List<MeterCheckIn> checkIns,
+    List<TokenPurchase> purchases, {
+    required double dailyUsage,
+    DateTime? now,
+  }) {
+    final now_ = now ?? DateTime.now();
+    if (checkIns.isEmpty) return 0;
+
+    final latest =
+        checkIns.reduce((a, b) => a.date.isAfter(b.date) ? a : b);
+    double extra = 0;
+    for (final p in purchases) {
+      if (!p.date.isBefore(latest.date)) extra += p.kWhAmount;
+    }
+    final effective = latest.remainingKWh + extra;
+
+    // Fractional days sejak check-in terakhir
+    final elapsedDays =
+        now_.difference(latest.date).inMilliseconds / (24.0 * 60 * 60 * 1000);
+    final used = dailyUsage * elapsedDays;
+
+    return (effective - used).clamp(0.0, effective);
   }
 
   // ── predict ──────────────────────────────────────────────────
@@ -135,9 +164,9 @@ class PredictionService {
     final purchases = await db.getAllPurchases();
     final dailyUsage = calculateDailyUsage(checkIns, purchases: purchases);
     if (dailyUsage == null) return null;
-    final effectiveKWh = getEffectiveKWh(checkIns, purchases);
+    final estimatedKWh = getEstimatedCurrentKWh(checkIns, purchases, dailyUsage: dailyUsage);
     final result = predictExhaustionDate(
-        currentKWh: effectiveKWh, dailyUsage: dailyUsage);
+        currentKWh: estimatedKWh, dailyUsage: dailyUsage);
     return PredictionResult(
       dailyUsageKWh: result.dailyUsageKWh,
       remainingDays: result.remainingDays,
