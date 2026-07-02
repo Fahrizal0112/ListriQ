@@ -17,10 +17,10 @@ class ListriQWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.listriq_widget_layout)
 
             val widgetData = HomeWidgetPlugin.getData(context)
-            val dailyUsageStr = widgetData.getString("dailyUsage", "")
-            val lastKWhStr = widgetData.getString("lastKWh", "")
-            val lastCheckInMillisStr = widgetData.getString("lastCheckInMillis", "0")
-            val days = widgetData.getString("days", "--")
+            val dailyUsageStr = widgetData.getString("dailyUsage") ?: ""
+            val lastKWhStr = widgetData.getString("lastKWh") ?: ""
+            val lastCheckInMillisStr = widgetData.getString("lastCheckInMillis") ?: "0"
+            val days = widgetData.getString("days") ?: "--"
 
             // Hitung estimasi real-time
             val now = System.currentTimeMillis()
