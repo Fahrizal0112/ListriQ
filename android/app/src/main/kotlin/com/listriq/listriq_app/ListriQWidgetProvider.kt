@@ -16,11 +16,11 @@ class ListriQWidgetProvider : AppWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.listriq_widget_layout)
 
-            val widgetData = HomeWidgetPlugin.getData(context)
-            val dailyUsageStr = widgetData.getString("dailyUsage") ?: ""
-            val lastKWhStr = widgetData.getString("lastKWh") ?: ""
-            val lastCheckInMillisStr = widgetData.getString("lastCheckInMillis") ?: "0"
-            val days = widgetData.getString("days") ?: "--"
+            val prefs = HomeWidgetPlugin.getData(context)
+            val dailyUsageStr = prefs.getString("dailyUsage", "") ?: ""
+            val lastKWhStr = prefs.getString("lastKWh", "") ?: ""
+            val lastCheckInMillisStr = prefs.getString("lastCheckInMillis", "0") ?: "0"
+            val days = prefs.getString("days", "--") ?: "--"
 
             // Hitung estimasi real-time
             val now = System.currentTimeMillis()
@@ -36,8 +36,8 @@ class ListriQWidgetProvider : AppWidgetProvider() {
                 kwh = String.format("%.1f kWh", displayKWh)
             } else {
                 // Fallback ke snapshot statis
-                val storedKwh = widgetData.getString("kwh", "--")
-                kwh = if (storedKwh != null && storedKwh.isNotEmpty()) "${storedKwh} kWh" else "--"
+                val storedKwh = prefs.getString("kwh", "--") ?: "--"
+                kwh = if (storedKwh.isNotEmpty()) "$storedKwh kWh" else "--"
             }
 
             views.setTextViewText(R.id.widget_kwh, kwh)
