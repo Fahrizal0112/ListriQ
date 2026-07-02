@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:listriq_app/core/database/app_database.dart';
 import 'package:listriq_app/core/database/database_provider.dart';
 import 'package:listriq_app/core/prediction/prediction_service.dart';
+import 'package:listriq_app/core/services/home_widget_service.dart';
 import 'package:listriq_app/core/storage/onboarding_service.dart';
 import 'package:listriq_app/core/storage/storage_provider.dart';
 
@@ -24,10 +25,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _refreshWidget();
     _timer = Timer.periodic(const Duration(seconds: 10), (_) {
-      // Rebuild widget tree — estimated kWh akan dihitung ulang.
       setState(() {});
+      _refreshWidget();
     });
+  }
+
+  /// Push data terbaru ke home screen widget android.
+  Future<void> _refreshWidget() async {
+    try {
+      final db = await ref.read(databaseProvider.future);
+      await HomeWidgetService.updateWidget(db);
+    } catch (_) {}
   }
 
   @override
